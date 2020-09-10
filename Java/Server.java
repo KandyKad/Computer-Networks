@@ -1,43 +1,90 @@
-import java.io.*;
-import java.net.*;
+/**
+ * A UDP Server
+ * @author Kunal Kanade
 
-class Server
+ Go Back N ARQ(Automatic Repeat Request)
+ */
+import java.net.*;
+import java.io.*;
+import java.util.*;
+public class Server
 {
 	public static void main(String args[]) throws Exception
 	{
-		DatagramSocket server_socket = new DatagramSocket(1234);
+		ServerSocket server=new ServerSocket(6262);
 		
-		BufferedReader server_input = new BufferedReader(new InputStreamReader(System.in)); // Create object in server to input from keyboard
+		System.out.println("Server established.");
 		
-		InetAddress IP_add = InetAddress.getByName("localhost"); // Getting IP address of localhost
+		Socket client=server.accept();
 		
-		byte out_data[] = new byte[1024]; //Creating Buffer for sending the data
+		ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream());
 		
-		byte in_data[] = new byte[1024];
+		ObjectInputStream ois=new ObjectInputStream(client.getInputStream());
+		
+		System.out.println("Client is now connected.");
+		
+		int x=(Integer)ois.readObject();
+		int k=(Integer)ois.readObject();
+		int j=0;
+		int i=(Integer)ois.readObject();
+		
+		boolean flag=true;
+		Random r=new Random(6);
+		
+		int mod=r.nextInt(6);
+		
+		while(mod==1||mod==0)
+			mod=r.nextInt(6);
 		
 		while(true)
 		{
-			DatagramPacket Packet2 = new DatagramPacket(in_data, in_data.length); // Create Datagram Packet
+			int c=k;
+			for(int h=0;h<=x;h++)
+			{
+				System.out.print("|"+c+"|");
+				c=(c+1)%x;
+			}
+			System.out.println();
+			System.out.println();
 			
-			server_socket.receive(Packet2); //Data from the client received in the Packet
+			if(k==j)
+			{
+				System.out.println("Frame " + k + " recieved" + "\n" + "Data: " + j);
+				j++;
+				System.out.println();
+			}
+
+			else
+				System.out.println("Frames recieved not in correct order" + "\n" + " Expected farme: " + j + "\n"+ " Recieved frame no :" + k);
 			
-			String Str = new String(Packet2.getData()); // Using getData() method returns data containing in the datagram which is stored in array of bytes
+			System.out.println();
+			if(j%mod==0 && flag)
+			{
+				System.out.println("Error found. Acknowledgement not sent. ");
+				flag=!flag;
+				j--;
+			}
+			else if(k==j-1)
+			{
+				oos.writeObject(k);
+				System.out.println("Acknowledgement sent.");
+			}
+
+			System.out.println();
 			
-			InetAddress IP_add1 = Packet2.getAddress(); // get the IP address of client
+			if(j%mod==0)
+				flag=!flag;
 			
-			int port = Packet2.getPort();
+			k=(Integer)ois.readObject();
 			
-			System.out.println(Str);
+			if(k==-1)
+				break;
 			
-			String send_str = server_input.readLine(); // Create String& read server input
-			
-			out_data = send_str.getBytes(); // To send data
-			
-			DatagramPacket Packet3 = new DatagramPacket(out_data, out_data.length, IP_add1, port); // Creating Datagram Packet which data encapsulated
-			
-			server_socket.send(Packet3); // Send Packet to Client
-			
-			
+			i=(Integer)ois.readObject();
 		}
+		
+		System.out.println("Client finished sending data. Exiting");
+		
+		oos.writeObject(-1);
 	}
 }

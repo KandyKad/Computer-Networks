@@ -1,38 +1,145 @@
-import java.io.*;
+/**
+ * A UDP Client
+ * @author Kunal Kanade
+
+ Go Back N ARQ(Automatic Repeat Request)
+
+ Just a Virtual Simulation
+ */
+
+import java.util.*;
 import java.net.*;
-
-class Client
+import java.io.*;
+public class Client
 {
-	public static void main(String args[])throws Exception
+	public static void main(String args[]) throws Exception
 	{
-		BufferedReader user_input = new BufferedReader(new InputStreamReader(System.in));
+		BufferedReader br=new BufferedReader(new InputStreamReader(System.in));
+		System.out.print("Enter the value of m : ");
 		
-		DatagramSocket client_socket = new DatagramSocket(); // Datagram socket used to create the UDP socket
+		int m=Integer.parseInt(br.readLine());
+		int x=(int)((Math.pow(2,m))-1);
 		
-		InetAddress IP_add = InetAddress.getByName("localhost"); // Getting IP address of the local host
+		System.out.print("Enter no. of frames to be sent: ");
 		
-		byte in_data[]  = new byte[1024]; // Array which reserver the input datagetting from server
+		int count=Integer.parseInt(br.readLine());
 		
+		int data[]=new int[count];
+		int h=0;
 		
-		byte out_data[] = new byte[1024]; // Creating buffer for sending the data
+		for(int i=0;i<count;i++)
+		{
+			System.out.print("Enter data for frame no " + h + " => ");
+			data[i]=Integer.parseInt(br.readLine());
+			h=(h+1)%x;
+		}
 		
-		String Str = user_input.readLine();
+		Socket client=new Socket("localhost", 6262);
 		
-		out_data = Str.getBytes();
+		ObjectInputStream ois=new ObjectInputStream(client.getInputStream());
+		ObjectOutputStream oos=new ObjectOutputStream(client.getOutputStream());
 		
-		DatagramPacket Packet1 = new DatagramPacket(out_data, out_data.length, IP_add, 1234); // Creating Datagram Packets where Data can be encapsulated
+		System.out.println("Connected with server.");
 		
-		client_socket.send(Packet1); // Sending packet to server
+		boolean flag=false;
 		
-		DatagramPacket Packet4 = new DatagramPacket(in_data, in_data.length);		
+		GoBackNListener listener=new GoBackNListener(ois,x);
+		
+		listener=new GoBackNListener(ois,x);
+		listener.t.start();
+		
+		int strt=0;
+		h=0;
+		oos.writeObject(x);
+		
+		do
+		{
+			int c=h;
+			for(int i=h;i<count;i++)
+			{
+				System.out.print("|"+c+"|");
+				c=(c+1)%x;
+			}
+		
+			System.out.println();
+			System.out.println();
+			h=strt;
+		
+			for(int i=strt;i<x;i++)
+			{
+				System.out.println("Sending frame: "+h);
+				h=(h+1)%x;
+		
+				System.out.println();
+		
+				oos.writeObject(i);
+				oos.writeObject(data[i]);
+		
+				Thread.sleep(100);
+			}
+		
+			listener.t.join(3500);
+		
+			if(listener.reply!=x-1)
+			{
+				System.out.println("No reply from server in 3.5 seconds. Resending data from frame no" + (listener.reply+1));
+				System.out.println();
+		
+				strt=listener.reply+1;
+				flag=false;
+			}
+			else
+			{
+				System.out.println("All elements sent successfully. Exiting");
+				flag=true;
+			}
+		}
 
-		client_socket.receive(Packet4);
+		while(!flag);
 		
-		String receive_str = new String(Packet4.getData()); // Get Server data in string and print it.
-		
-		System.out.println(receive_str);
+		oos.writeObject(-1);
+	}
+}
+
+class GoBackNListener implements Runnable
+{
+	Thread t;
+	ObjectInputStream ois;
+	int reply,x;
+	GoBackNListener(ObjectInputStream o,int i)
+	{
+		t=new Thread(this);
+		ois=o;
+		reply=-2;
+		x=i;
+	}
+
+	@Override
+	public void run() 
+	{
+		try
+		{
+			int temp=0;
+			while(reply!=-1)
+			{
+				reply=(Integer)ois.readObject();
 				
-		client_socket.close(); // Closing client
-		
+				if(reply!=-1 && reply!=temp+1)
+					reply=temp;
+				
+				if(reply!=-1)
+				{
+					temp=reply;
+					System.out.println("Acknowledgement of frame no " + (reply%x) + " recieved.");
+					System.out.println();
+				}
+			}
+			reply=temp;
+		}
+
+		catch(Exception e)
+		{
+			System.out.println("Exception => " + e);
+		}
 	}
 }
