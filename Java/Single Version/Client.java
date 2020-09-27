@@ -2,7 +2,7 @@
  * A UDP Client
  * @author Kunal Kanade
  
- Single client-server Chat system
+ Multi client-server Chat system
  */
 
 import java.io.BufferedReader;
@@ -13,51 +13,47 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 
-public class Client
+public class Multiclient // Multiclient
 {
+    
+    public static void main(String args[]) throws Exception
+	{
+		Socket sk = new Socket("127.0.0.1",5000);
+		
+		BufferedReader sin=new BufferedReader(new InputStreamReader(sk.getInputStream()));
 
-    
-    public static void main(String[] args) throws SocketException, IOException 
-    {
-        
-        BufferedReader clientRead =new BufferedReader(new InputStreamReader(System.in));
-      
-        InetAddress IP = InetAddress.getByName("127.0.0.1");
-        //int c=5;
-        DatagramSocket clientSocket = new DatagramSocket();
-        while(true)    //true
-        {
-            byte[] sendbuffer = new byte[1024];
-            byte[] receivebuffer = new byte[1024];
-      
-            System.out.print("\nClient: ");
-            String clientData = clientRead.readLine();
-      
-            sendbuffer = clientData.getBytes();        
-    
-            DatagramPacket sendPacket =
-      
-            new DatagramPacket(sendbuffer, sendbuffer.length, IP, 9876);
-      
-            clientSocket.send(sendPacket);
-      
-            if(clientData.equalsIgnoreCase("bye")) // Exit statement
+		PrintStream sout=new PrintStream(sk.getOutputStream());
+
+		BufferedReader stdin=new BufferedReader(new InputStreamReader(System.in));
+
+		String s;
+		while (true)
+		{
+			System.out.print("Client : ");
+
+			s=stdin.readLine();
+
+			sout.println(s);
+            if ( s.equalsIgnoreCase("BYE") ) // Exit statement
             {
                 System.out.println("Connection ended by client");
-                break;
+
+ 				break;
             }
-            DatagramPacket receivePacket =
-      
-            new DatagramPacket(receivebuffer, receivebuffer.length);
-            
-            clientSocket.receive(receivePacket);
-            String serverData = new String(receivePacket.getData());
-            System.out.print("\nServer: " + serverData);
-      
-      	    //checking condition for equals with serverData which is my string
-      	    //c--;
-        }
-      clientSocket.close();
-    }
+
+			s = sin.readLine(); // Keep sending msgs till exit
+
+			System.out.print("Server : "+s+"\n");
+  			
+		}
+
+		sk.close(); //Closing sockets
+
+		sin.close();
+
+		sout.close();
+
+ 		stdin.close();
+	}
     
 }

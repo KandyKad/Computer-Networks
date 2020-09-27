@@ -2,7 +2,7 @@
  * A UDP Server
  * @author Kunal Kanade
  
- Single client-server Chat system
+ Multi client-server Chat system
  */
 
 import java.io.BufferedReader;
@@ -12,48 +12,118 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-
-public class Server 
+public class Multiserver  
 {
-    public static void main(String[] args) throws SocketException, IOException
-    {
-        DatagramSocket serverSocket = new DatagramSocket(9876);
-        boolean bye=false;
-        //int c=5;
-        while(true) //instead of c i want to use true
-        {
-            byte[] receivebuffer = new byte[1024];
-            byte[] sendbuffer  = new byte[1024];
-          
-            DatagramPacket recvdpkt = new DatagramPacket(receivebuffer, receivebuffer.length);
-          
-            serverSocket.receive(recvdpkt);
-            InetAddress IP = recvdpkt.getAddress();
-          
-            int portno = recvdpkt.getPort();
-            String clientdata = new String(recvdpkt.getData());
-          
-            System.out.println("\nClient : "+ clientdata);
-            System.out.print("\nServer : ");
-          
-            BufferedReader serverRead = new BufferedReader(new InputStreamReader (System.in) );
-          
-            String serverdata = serverRead.readLine();                  
-            sendbuffer = serverdata.getBytes();
-          
-            DatagramPacket sendPacket = new DatagramPacket(sendbuffer, sendbuffer.length, IP,portno);
-            serverSocket.send(sendPacket); 
-          
-            //here the check condition for serverdata which must be bye
-          
-            if(serverdata.equalsIgnoreCase("bye")) // Exit statement
-            {
-                System.out.println("connection ended by server");
-                break;
-            }
-      }
-            serverSocket.close();
-    }        
-}
 
+    int port;
+    ServerSocket server = null;
+    Socket client = null;
+    ExecutorService pool = null;
+    int clientcount = 0;
+    
+    public static void main(String[] args) throws IOException 
+    {
+        Server serverobj = new Server(5000);
+    
+        serverobj.startServer();
+    }
+    
+    Server(int port)
+    {
+        this.port = port;
+        pool = Executors.newFixedThreadPool(5);
+    }
+
+    public void startServer() throws IOException // Boot server
+    {
+        
+        server = new ServerSocket(5000);
+        System.out.println("Server Booted");
+        System.out.println("Any client can stop the server by sending -1");
+        while(true)
+        {
+            client = server.accept();
+            clientcount++;
+            ServerThread runnable = new ServerThread(client,clientcount,this);
+            pool.execute(runnable);
+        }
+        
+    }
+
+    private static class ServerThread implements Runnable //Establish connection
+    {
+        
+        Server server = null;
+        Socket client = null;
+        BufferedReader cin;
+        PrintStream cout;
+        Scanner sc = new Scanner(System.in);
+        int id;
+        String s;
+        
+        ServerThread(Socket client, int count ,Server server ) throws IOException 
+        {
+            
+            this.client = client;
+            this.server = server;
+            this.id = count;
+            System.out.println("Connection "+id+"established with client "+client);
+            
+            cin = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            cout = new PrintStream(client.getOutputStream());
+        
+        }
+
+     
+        public void run() 
+        {
+            int x = 1;
+            try // Try - catch to counter exception
+            {
+                while(true)
+                {
+                    s = cin.readLine();
+  			 
+			        System. out.print("Client("+id+") :"+s+"\n");
+			        System.out.print("Server : ");
+			        //s=stdin.readLine();
+                    
+                    s = sc.nextLine();
+                    if (s.equalsIgnoreCase("bye")) // Exit statements
+                        {
+                            cout.println("BYE");
+                            x = 0; // flag
+                            System.out.println("Connection ended by server");
+                            break;
+                        }
+			        
+                    cout.println(s);
+		        }
+		
+            
+                cin.close();
+                client.close();
+		        cout.close();
+                if(x == 0) // If exited, clean the server
+                {
+			         System.out.println( "Server cleaning up." );
+			         System.exit(0);
+                }
+            }
+
+            catch(IOException ex)
+            {
+                System.out.println("Error : "+ex);
+            }
+ 		
+        }
+    }
+    
+}
