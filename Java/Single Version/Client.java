@@ -2,58 +2,95 @@
  * A UDP Client
  * @author Kunal Kanade
  
- Multi client-server Chat system
+Sends all types of files within UDP Packet size limit.
  */
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.io.*;
+import java.net.*;
+import java.util.Arrays;
+import java.util.Scanner;
 
-public class Multiclient // Multiclient
+public class Client 
 {
-    
-    public static void main(String args[]) throws Exception
-	{
-		Socket sk = new Socket("127.0.0.1",5000);
-		
-		BufferedReader sin=new BufferedReader(new InputStreamReader(sk.getInputStream()));
+    /**
+     * @param args the command line arguments
+     */
 
-		PrintStream sout=new PrintStream(sk.getOutputStream());
+    public static void main(String[] args)
+    {
+        // TODO code application logic here
 
-		BufferedReader stdin=new BufferedReader(new InputStreamReader(System.in));
+        DatagramSocket socket = null;                         // Initialization same as Server
+        DatagramPacket inPacket = null;                      // receiving Packet
+        DatagramPacket outPacket = null;                     // Sending Packet
+        byte[] inBuf, outBuf;
+        final int PORT = 50000;
+        String msg = null;
+        Scanner src = new Scanner(System.in);
 
-		String s;
-		while (true)
-		{
-			System.out.print("Client : ");
+        try // If connection established
+        {
+            InetAddress address = InetAddress.getByName("127.0.0.1");  //LocalHost
+            socket = new DatagramSocket();                             //Create a socket on local Address
 
-			s=stdin.readLine();
+            msg = "";
+            outBuf = msg.getBytes();
+            outPacket = new DatagramPacket(outBuf, 0, outBuf.length, address, PORT);
+            socket.send(outPacket);
 
-			sout.println(s);
-            if ( s.equalsIgnoreCase("BYE") ) // Exit statement
+            inBuf = new byte[65535];
+            inPacket = new DatagramPacket(inBuf, inBuf.length);
+            socket.receive(inPacket);
+
+            String data = new String(inPacket.getData(), 0, inPacket.getLength());
+            //Print file list
+            System.out.println(data);
+
+            //Send File name
+            String filename = src.nextLine();
+            outBuf = filename.getBytes();
+            outPacket = new DatagramPacket(outBuf, 0, outBuf.length, address, PORT);
+            socket.send(outPacket);
+
+            //Receive File
+            inBuf = new byte[100000];                           //Max size here is 64kb file
+            inPacket = new DatagramPacket(inBuf, inBuf.length);
+            socket.receive(inPacket);
+
+            data = new String(inPacket.getData(), 0, inPacket.getLength());
+            if(data.endsWith("ERROR"))                        //If file doesn't exist
             {
-                System.out.println("Connection ended by client");
-
- 				break;
+                System.out.println("File doesn't exist.\n");
+                socket.close();
             }
+            else
+            {
+                try // If file readable
+                {
+                    BufferedWriter pw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename)));
+                    pw.write(data);
 
-			s = sin.readLine(); // Keep sending msgs till exit
+                    //Force write buffer to file
+                    pw.close();                              // After writing close the buffer
 
-			System.out.print("Server : "+s+"\n");
-  			
-		}
+                    System.out.println("File Write Successful. Closing Socket.");
+                    socket.close();
+                }
 
-		sk.close(); //Closing sockets
+                catch(IOException ioe) // If file not readable
+                {
+                    System.out.println("File Error\n");
+                    socket.close();
+                }
+            }
+        }
+        catch(Exception e) // If connection not established, then network error
+        {
+            System.out.println("\nNetwork error, Please try again.\n");
+        }
 
-		sin.close();
-
-		sout.close();
-
- 		stdin.close();
-	}
-    
+    }
 }
+
+
+
