@@ -1,96 +1,81 @@
 /**
  * A UDP Client
  * @author Kunal Kanade
- 
-Sends all types of files within UDP Packet size limit.
+
+ Stop and Wait ARQ(Automatic Repeat Request)
+
+ Just a Virtual Simulation
  */
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
-import java.util.Scanner;
+import java.nio.*;
 
-public class Client 
+public class UDPStopAndWaitClient
 {
-    /**
-     * @param args the command line arguments
-     */
 
-    public static void main(String[] args)
+    private static final int BUFFER_SIZE = 1024;
+    private static final int PORT = 6789;
+    private static final String HOSTNAME = "localhost";
+    private static final int BASE_SEQUENCE_NUMBER = 0;  // Just  virtual simulating transfer of any packet..
+
+    public static void main(String args[]) throws Exception
     {
-        // TODO code application logic here
+      // Create a socket
+      DatagramSocket socket = new DatagramSocket();
+      socket.setSoTimeout( 1000 );     
 
-        DatagramSocket socket = null;                         // Initialization same as Server
-        DatagramPacket inPacket = null;                      // receiving Packet
-        DatagramPacket outPacket = null;                     // Sending Packet
-        byte[] inBuf, outBuf;
-        final int PORT = 50000;
-        String msg = null;
-        Scanner src = new Scanner(System.in);
+      // The message we're going to send converted to bytes
+      Integer sequenceNumber = BASE_SEQUENCE_NUMBER;
 
-        try // If connection established
+
+      for (int counter = 0; counter < 20; counter++)  // Try to send 10 numbers till.
+      {
+        boolean timedOut = true;
+
+        while( timedOut )  // Will send the packet infinitely.. timeout limit not set..
         {
-            InetAddress address = InetAddress.getByName("127.0.0.1");  //LocalHost
-            socket = new DatagramSocket();                             //Create a socket on local Address
+          sequenceNumber++;
 
-            msg = "";
-            outBuf = msg.getBytes();
-            outPacket = new DatagramPacket(outBuf, 0, outBuf.length, address, PORT);
-            socket.send(outPacket);
+          // Create a byte array for sending and receiving data
+          byte[] sendData = new byte[ BUFFER_SIZE ];
+          byte[] receiveData = new byte[ BUFFER_SIZE ];
 
-            inBuf = new byte[65535];
-            inPacket = new DatagramPacket(inBuf, inBuf.length);
-            socket.receive(inPacket);
+          // Get the IP address of the server
+          InetAddress IPAddress = InetAddress.getByName( HOSTNAME );   //Get by name, 127.0.0.1
 
-            String data = new String(inPacket.getData(), 0, inPacket.getLength());
-            //Print file list
-            System.out.println(data);
+          System.out.println( "Sending Packet (Sequence Number " + sequenceNumber + ")" );        
+          
+          // Get byte data for message 
+          sendData = ByteBuffer.allocate(4).putInt( sequenceNumber ).array();
 
-            //Send File name
-            String filename = src.nextLine();
-            outBuf = filename.getBytes();
-            outPacket = new DatagramPacket(outBuf, 0, outBuf.length, address, PORT);
-            socket.send(outPacket);
+          try
+          {
+            // Send the UDP Packet to the server
+            DatagramPacket packet = new DatagramPacket(sendData, sendData.length, IPAddress, 6789);
+            socket.send( packet );
 
-            //Receive File
-            inBuf = new byte[100000];                           //Max size here is 64kb file
-            inPacket = new DatagramPacket(inBuf, inBuf.length);
-            socket.receive(inPacket);
+            // Receive the server's packet
+            DatagramPacket received = new DatagramPacket(receiveData, receiveData.length);
+            socket.receive( received );
+            
+            // Get the message from the server's packet
+            int returnMessage = ByteBuffer.wrap( received.getData( ) ).getInt();
 
-            data = new String(inPacket.getData(), 0, inPacket.getLength());
-            if(data.endsWith("ERROR"))                        //If file doesn't exist
-            {
-                System.out.println("File doesn't exist.\n");
-                socket.close();
-            }
-            else
-            {
-                try // If file readable
-                {
-                    BufferedWriter pw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename)));
-                    pw.write(data);
+            System.out.println( "FROM SERVER:" + returnMessage + " from: " + IPAddress);   // Receiving msg
+            
+            // If we receive an acknowlwdgement, stop the while loop
+            timedOut = false;
+          } 
+          catch( SocketTimeoutException exception )
+          {
+            // If we don't get an ack, prepare to resend sequence number
+            System.out.println( "Timeout (Sequence Number " + sequenceNumber + ")" );
+            sequenceNumber--;
+          }
+        } 
+      }
 
-                    //Force write buffer to file
-                    pw.close();                              // After writing close the buffer
-
-                    System.out.println("File Write Successful. Closing Socket.");
-                    socket.close();
-                }
-
-                catch(IOException ioe) // If file not readable
-                {
-                    System.out.println("File Error\n");
-                    socket.close();
-                }
-            }
-        }
-        catch(Exception e) // If connection not established, then network error
-        {
-            System.out.println("\nNetwork error, Please try again.\n");
-        }
-
+      socket.close();
     }
 }
-
-
-

@@ -1,137 +1,64 @@
 /**
  * A UDP Server
  * @author Kunal Kanade
- 
-Sends all types of files within UDP Packet size limit.
+
+ Stop and Wait ARQ(Automatic Repeat Request)
  */
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
+import java.nio.*;
+import java.util.*;
 
-class Server 
+public class UDPStopAndWaitServer
 {
-    /**
-     * @param args the command line arguments
-     */
+	private static final int BUFFER_SIZE = 1024;
+	private static final int PORT = 6789;
 
-    public static void main(String[] args) 
-    {
-        // TODO code application logic here
- 
-        DatagramSocket socket = null;           // Sending or receiving point (Multiple packets from one machine may be routed differently)
-        DatagramPacket inPacket = null;         // Receiving Packet (Used for connection-less packet delivery)
-        DatagramPacket outPacket = null;        // Sending Packet
-        byte[] inBuf, outBuf;                   // get the data from the packet as bytes
-        String msg;
-        final int PORT = 50000;                 // Where(server) the data will be sent (Any port from 1024 to 65536)
+	public static void main(String[] args) throws IOException 
+  {
+		// Create a server socket
+		DatagramSocket serverSocket = new DatagramSocket( PORT );
 
-        try
+		// Set up byte arrays for sending/receiving data
+    byte[] receiveData = new byte[ BUFFER_SIZE ];
+    byte[] dataForSend = new byte[ BUFFER_SIZE ];
+
+        // Infinite loop to check for connections 
+        while(true)
         {
-            socket = new DatagramSocket(PORT);
-            while(true)                         // Keeps running infinitely until closure
-            {
-                System.out.println("\nRunning...\n");
-                
-                inBuf = new byte[100];                               // To accept msg's coming from client (byte array)
-                inPacket = new DatagramPacket(inBuf, inBuf.length);  // Packet of inBuf
-                socket.receive(inPacket); 
 
-                int source_port = inPacket.getPort();
-                InetAddress source_address = inPacket.getAddress();
-                msg = new String(inPacket.getData(), 0, inPacket.getLength()); // Get msg from 0th position till end length.
-                System.out.println("Client: " + source_address + ":" + source_port); //Shows where the client has connected
+        	// Get the received packet
+        	DatagramPacket received = new DatagramPacket( receiveData, receiveData.length );
+          serverSocket.receive( received );
 
-                // Contains txt files to be sent to the client when requested 
-                String dirname = "D:\\Kunal\\IIIT PUNE\\SEM 5\\Computer Networks - YN Singh (IIT Kanpur)\\Lab\\20.08.2020";  // Directory with files
+          // Get the message from the packet
+          int message = ByteBuffer.wrap(received.getData( )).getInt();
 
-                File f1 = new File(dirname);
-                File fl[] = f1.listFiles();                          //List of files in the directory
+          Random random = new Random( );             // As simulating the reliable protocol.. So, there is only two possibility that a packet will be transfered or not transfered..
+          int chance = random.nextInt( 100 );        // So taking a randon int in 1 to 100 and if its even assume that it would be transferred else not transferred.
 
-                StringBuilder sb = new StringBuilder("\n");
-                int c = 0;
 
-                for(int i = 0; i < fl.length; i++)
-                {
-                    if(fl[i].canRead())                      // No. of files that can be actually read. Hidden files cannot be read
-                        c++;
-                }
+          // 1 in 2 chance of responding to the message. (Very Vague assumption..)
+          if( ((chance % 2) == 0) )
+          {
+              // Get packet's IP and port
+              InetAddress IPAddress = received.getAddress();
+              int port = received.getPort();
 
-                sb.append(c + " file found.\n\n");
+              System.out.println("FROM CLIENT: " + message + " from: " + IPAddress);
+              // Convert message to uppercase 
+              dataForSend = ByteBuffer.allocate(4).putInt( message ).array();
 
-                for(int i = 0; i < fl.length; i++)           // Append name and size of files to StringBuilder
-                {
-                    sb.append(fl[i].getName() + " " + fl[i].length() + " Bytes\n");
-                }
+              // Send the packet data back to the client
+              DatagramPacket packet = new DatagramPacket( dataForSend, dataForSend.length, IPAddress, port );
+              serverSocket.send( packet ); 
+          } 
 
-                sb.append("\nEnter file name for download");      // Req. file name for download
-                outBuf = (sb.toString()).getBytes();                // As msg needs to be sent in form of bytes
-                outPacket = new DatagramPacket(outBuf, 0, outBuf.length, source_address, source_port);
-                socket.send(outPacket);                           // Packet sent
-
-                inBuf = new byte[100];
-                inPacket = new DatagramPacket(inBuf, inBuf.length);   // File name to be downloaded
-                socket.receive(inPacket);
-                String filename = new String(inPacket.getData(), 0, inPacket.getLength());
-
-                System.out.println("Requested File: " + filename);
-
-                boolean flis = false;
-                int index = -1;
-                sb = new StringBuilder("");
-                for(int i = 0; i < fl.length; i++)
-                {
-                    if(((fl[i].getName()).toString()).equalsIgnoreCase(filename))
-                    {
-                        index = i;
-                        flis = true;             // If file exist set true
-                    }
-                }
-
-                if(!flis)                        // If file not found, then resp. error
-                {
-                    System.out.println("ERROR");
-                    sb.append("ERROR");
-                    outBuf = (sb.toString()).getBytes();
-                    outPacket = new DatagramPacket(outBuf, 0, outBuf.length, source_address, source_port);
-                    socket.send(outPacket);
-                }
-                else
-                {
-                    try
-                    {
-                        // File Send Process, Independent
-                        File ff = new File(fl[index].getAbsolutePath());  // Gets the file path to get the file in runtime
-                        FileReader fr = new FileReader(ff);               // Read file
-                        BufferedReader brf = new BufferedReader(fr);
-                        String s = null;
-                        sb = new StringBuilder();                         //Append line
-
-                        while((s = brf.readLine()) != null)
-                        {
-                            sb.append(s);
-                        }
-                        if(brf.readLine() == null)
-                            System.out.println("File Read Successful. Close Socket.");  // When file reading is successful, socket closed.
-
-                        outBuf = new byte[100000];                        //Send msg
-                        outBuf = (sb.toString()).getBytes();
-                        outPacket = new DatagramPacket(outBuf, 0, outBuf.length, source_address, source_port);
-                        socket.send(outPacket);                          //Packet sent to client
-                    }
-                    catch(IOException ioe)                               //If any exception while sending
-                    {  
-                        System.out.println(ioe);
-                    }
-                } // Else ending
-
-            } //while ending
-
-        } // Try ending
-
-        catch(Exception e) // For main try block
-        {
-            System.out.println("Error\n");
+          else 
+          {
+              System.out.println( "Oops, packet with sequence number "+ message + " was dropped");
+          }
         }
-    }
+  }
 }
