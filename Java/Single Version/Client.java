@@ -2,44 +2,62 @@
  * A UDP Client
  * @author Kunal Kanade
  
- Single Message sent
+ Single client-server Chat system
  */
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 
 public class Client
 {
-	public static void main(String args[])throws Exception
-	{
-		BufferedReader user_input = new BufferedReader(new InputStreamReader(System.in));
-		
-		DatagramSocket client_socket = new DatagramSocket(); // Datagram socket used to create the UDP socket
-		
-		InetAddress IP_add = InetAddress.getByName("localhost"); // Getting IP address of the local host
-		
-		byte in_data[]  = new byte[1024]; // Array which reserver the input datagetting from server
-		
-		
-		byte out_data[] = new byte[1024]; // Creating buffer for sending the data
-		
-		String Str = user_input.readLine();
-		
-		out_data = Str.getBytes();
-		
-		DatagramPacket Packet1 = new DatagramPacket(out_data, out_data.length, IP_add, 1234); // Creating Datagram Packets where Data can be encapsulated
-		
-		client_socket.send(Packet1); // Sending packet to server
-		
-		DatagramPacket Packet4 = new DatagramPacket(in_data, in_data.length);		
 
-		client_socket.receive(Packet4);
-		
-		String receive_str = new String(Packet4.getData()); // Get Server data in string and print it.
-		
-		System.out.println(receive_str);
-				
-		client_socket.close(); // Closing client
-		
-	}
+    
+    public static void main(String[] args) throws SocketException, IOException 
+    {
+        
+        BufferedReader clientRead =new BufferedReader(new InputStreamReader(System.in));
+      
+        InetAddress IP = InetAddress.getByName("127.0.0.1");
+        //int c=5;
+        DatagramSocket clientSocket = new DatagramSocket();
+        while(true)    //true
+        {
+            byte[] sendbuffer = new byte[1024];
+            byte[] receivebuffer = new byte[1024];
+      
+            System.out.print("\nClient: ");
+            String clientData = clientRead.readLine();
+      
+            sendbuffer = clientData.getBytes();        
+    
+            DatagramPacket sendPacket =
+      
+            new DatagramPacket(sendbuffer, sendbuffer.length, IP, 9876);
+      
+            clientSocket.send(sendPacket);
+      
+            if(clientData.equalsIgnoreCase("bye")) // Exit statement
+            {
+                System.out.println("Connection ended by client");
+                break;
+            }
+            DatagramPacket receivePacket =
+      
+            new DatagramPacket(receivebuffer, receivebuffer.length);
+            
+            clientSocket.receive(receivePacket);
+            String serverData = new String(receivePacket.getData());
+            System.out.print("\nServer: " + serverData);
+      
+      	    //checking condition for equals with serverData which is my string
+      	    //c--;
+        }
+      clientSocket.close();
+    }
+    
 }

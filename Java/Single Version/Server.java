@@ -2,49 +2,58 @@
  * A UDP Server
  * @author Kunal Kanade
  
- Single Message sent
+ Single client-server Chat system
  */
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 
-public class Server
+
+public class Server 
 {
-	public static void main(String args[]) throws Exception
-	{
-		DatagramSocket server_socket = new DatagramSocket(1234);
-		
-		BufferedReader server_input = new BufferedReader(new InputStreamReader(System.in)); // Create object in server to input from keyboard
-		
-		InetAddress IP_add = InetAddress.getByName("localhost"); // Getting IP address of localhost
-		
-		byte out_data[] = new byte[1024]; //Creating Buffer for sending the data
-		
-		byte in_data[] = new byte[1024];
-		
-		while(true)
-		{
-			DatagramPacket Packet2 = new DatagramPacket(in_data, in_data.length); // Create Datagram Packet
-			
-			server_socket.receive(Packet2); //Data from the client received in the Packet
-			
-			String Str = new String(Packet2.getData()); // Using getData() method returns data containing in the datagram which is stored in array of bytes
-			
-			InetAddress IP_add1 = Packet2.getAddress(); // get the IP address of client
-			
-			int port = Packet2.getPort();
-			
-			System.out.println(Str);
-			
-			String send_str = server_input.readLine(); // Create String& read server input
-			
-			out_data = send_str.getBytes(); // To send data
-			
-			DatagramPacket Packet3 = new DatagramPacket(out_data, out_data.length, IP_add1, port); // Creating Datagram Packet which data encapsulated
-			
-			server_socket.send(Packet3); // Send Packet to Client
-			
-			
-		}
-	}
+    public static void main(String[] args) throws SocketException, IOException
+    {
+        DatagramSocket serverSocket = new DatagramSocket(9876);
+        boolean bye=false;
+        //int c=5;
+        while(true) //instead of c i want to use true
+        {
+            byte[] receivebuffer = new byte[1024];
+            byte[] sendbuffer  = new byte[1024];
+          
+            DatagramPacket recvdpkt = new DatagramPacket(receivebuffer, receivebuffer.length);
+          
+            serverSocket.receive(recvdpkt);
+            InetAddress IP = recvdpkt.getAddress();
+          
+            int portno = recvdpkt.getPort();
+            String clientdata = new String(recvdpkt.getData());
+          
+            System.out.println("\nClient : "+ clientdata);
+            System.out.print("\nServer : ");
+          
+            BufferedReader serverRead = new BufferedReader(new InputStreamReader (System.in) );
+          
+            String serverdata = serverRead.readLine();                  
+            sendbuffer = serverdata.getBytes();
+          
+            DatagramPacket sendPacket = new DatagramPacket(sendbuffer, sendbuffer.length, IP,portno);
+            serverSocket.send(sendPacket); 
+          
+            //here the check condition for serverdata which must be bye
+          
+            if(serverdata.equalsIgnoreCase("bye")) // Exit statement
+            {
+                System.out.println("connection ended by server");
+                break;
+            }
+      }
+            serverSocket.close();
+    }        
 }
+
